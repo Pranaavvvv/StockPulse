@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #ef4d23;
+  --color-dark: #0b0f1a;
+  --color-page: #ededed;
+  --color-hero: #d9d9d9;
+  --color-tray: #f5f2ee;
+  --font-sans: 'Inter', sans-serif;
+  --font-serif: 'Instrument Serif', serif;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-page);
+    color: var(--color-gray-900);
+    font-family: var(--font-sans);
+  }
+}
