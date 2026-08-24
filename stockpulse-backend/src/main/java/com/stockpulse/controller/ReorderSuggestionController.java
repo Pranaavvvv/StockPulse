@@ -45,7 +45,7 @@ public class ReorderSuggestionController {
             
             // Check if there are any other pending suggestions for this product
             boolean hasPendingPricing = pricingRepository.existsByProductIdAndStatus(product.getId(), SuggestionStatus.PENDING);
-            boolean hasPendingReorder = suggestionRepository.existsByProductIdAndStatus(product.getId(), SuggestionStatus.PENDING);
+            boolean hasPendingReorder = suggestionRepository.existsByProductIdAndStatusAndIdNot(product.getId(), SuggestionStatus.PENDING, suggestion.getId());
             
             if (!hasPendingPricing && !hasPendingReorder) {
                 product.setStatus(ProductStatus.ACTIVE);

@@ -13,4 +13,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     List<Product> findByStatusAndCategory(ProductStatus status, Category category);
     List<Product> findByStatus(ProductStatus status);
     List<Product> findByCategory(Category category);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("SELECT p FROM Product p WHERE p.id = :id")
+    java.util.Optional<Product> findByIdWithLock(@org.springframework.data.repository.query.Param("id") Long id);
 }

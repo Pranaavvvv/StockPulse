@@ -13,4 +13,5 @@ public interface PricingSuggestionRepository extends JpaRepository<PricingSugges
     List<PricingSuggestion> findByProductIdAndStatusAndTriggerReason(Long productId, SuggestionStatus status, TriggerReason triggerReason);
     List<PricingSuggestion> findByStatus(SuggestionStatus status);
     boolean existsByProductIdAndStatus(Long productId, SuggestionStatus status);
+    boolean existsByProductIdAndStatusAndIdNot(Long productId, SuggestionStatus status, Long id);
 }

@@ -29,8 +29,8 @@
 **Options**:
 1. Bubble up the exception and drop the suggestion.
 2. Catch the exception and use a deterministic fallback.
-**Decision**: We wrapped the LLM execution in a `try-catch` block with a strict timeout (`future.get(5, TimeUnit.SECONDS)`). We strictly validate that the `recommendedPrice` is within +/- 50% of the current price and `> 0`. If any validation fails, or if the API key is missing (Zero-Setup Guard), it silently delegates to the `RuleBasedAdvisor`.
-**Tradeoffs**: The user might not realize the AI failed because the fallback is seamless, but in commerce, a safe deterministic action is infinitely better than a dropped alert. 
+**Decision**: We wrapped the LLM execution in a `try-catch` block with a strict timeout (`future.get(5, TimeUnit.SECONDS)`). We strictly validate bounds. If any validation fails, or if the API key is missing, it silently delegates to the `RuleBasedAdvisor`. We dynamically append `(System Fallback due to AI Timeout/Key Missing)` to the reasoning and penalize the confidence score by 10%.
+**Tradeoffs**: Safe deterministic action is infinitely better than a dropped alert. Adding the fallback tag ensures merchandisers understand *why* a suggestion might seem generic, maintaining trust in the AI's actual outputs. 
 
 ## 5. Agentic loop trigger and decoupling
 **Context**: When an order simulates a demand spike, we need to generate suggestions without blocking the HTTP response.
@@ -38,8 +38,8 @@
 1. Synchronously call the advisor before returning `ResponseEntity`.
 2. Schedule a cron job to poll for low stock.
 3. Publish a Spring `ApplicationEvent` handled by an `@Async` listener.
-**Decision**: Option 3 (`@Async` event listener). 
-**Tradeoffs**: Fully decouples the core order flow from the heavy LLM execution. We had to implement an explicit idempotency check in the listener (querying for existing `PENDING` suggestions) to ensure a sudden burst of 50 orders doesn't queue 50 identical AI calls. 
+**Decision**: Option 3 (`@Async` event listener). The listener delegates to a `@Transactional` `InventoryProcessingService` that fetches the `Product` using a Pessimistic Write Lock (`@Lock(LockModeType.PESSIMISTIC_WRITE)`).
+**Tradeoffs**: Fully decouples the core order flow from heavy LLM execution. The pessimistic lock prevents idempotency race conditions (where concurrent order spikes could queue duplicate AI calls), guaranteeing that only one thread evaluates the pending status for a given product at a time.
 
 ## 6. Extensibility and exclusions
 **Context**: We need to build the foundation for Sprint 2 (Competitor pricing and margin floors).
@@ -53,3 +53,8 @@
 1. **CompetitorAwareAdvisor**: We created a third strategy (`COMPETITOR`) that simulates scraping competitor prices and matching them. It proves the `AdvisorRegistry` allows hot-swapping logic via `POST /admin/strategy?name=COMPETITOR` without a JVM restart.
 2. **Margin Floor Guardrails**: The `AiCommerceAdvisor` strictly validates that LLM suggestions never dip below the `marginFloor`. If it does, the system overrides the price to the floor and notes it in the reasoning block.
 3. **High-Confidence Auto-Apply**: In the `InventoryEventListener`, if the AI's confidence is `> 0.95` AND the variance is `< 5%`, the suggestion bypasses the human checkpoint queue, gets marked `ACCEPTED`, and updates the live price instantly. This proves Sprint 3 Automation viability.
+
+## 8. Event Sourcing / Price History Ledger
+**Context**: Accepting pricing suggestions previously overwrote the `currentPrice` on the product without preserving historical changes, making accurate price history charts impossible.
+**Decision**: We introduced a `PriceHistory` domain entity to act as an immutable ledger. Whenever a pricing suggestion is `ACCEPTED`, the `PricingSuggestionController` writes a new entry into the `price_history` table with the updated price and timestamp.
+**Tradeoffs**: Adds a slight write overhead during the approval process, but guarantees absolute data fidelity and auditability for price fluctuations over time, which is essential for a commerce platform.

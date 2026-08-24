@@ -32,7 +32,10 @@ public class AiCommerceAdvisor implements CommerceAdvisor {
     public PricingSuggestion generatePricingSuggestion(Product p, TriggerReason trigger) {
         if (!llmGateway.hasApiKey()) {
             log.warn("No LLM_API_KEY found. Falling back to Rule-Based Strategy for Pricing.");
-            return ruleBasedAdvisor.generatePricingSuggestion(p, trigger);
+            PricingSuggestion fallback = ruleBasedAdvisor.generatePricingSuggestion(p, trigger);
+            fallback.setReasoning(fallback.getReasoning() + " (System Fallback due to AI Key Missing)");
+            fallback.setConfidence(fallback.getConfidence() * 0.9);
+            return fallback;
         }
 
         String prompt = String.format("""
@@ -61,7 +64,10 @@ public class AiCommerceAdvisor implements CommerceAdvisor {
             return parseAndValidatePricing(rawResponse, p, trigger);
         } catch (Exception e) {
             log.error("LLM call failed or timed out. Falling back to Rule-Based Strategy.", e);
-            return ruleBasedAdvisor.generatePricingSuggestion(p, trigger);
+            PricingSuggestion fallback = ruleBasedAdvisor.generatePricingSuggestion(p, trigger);
+            fallback.setReasoning(fallback.getReasoning() + " (System Fallback due to AI Timeout)");
+            fallback.setConfidence(fallback.getConfidence() * 0.9);
+            return fallback;
         }
     }
 
@@ -69,7 +75,10 @@ public class AiCommerceAdvisor implements CommerceAdvisor {
     public ReorderSuggestion generateReorderSuggestion(Product p, TriggerReason trigger) {
         if (!llmGateway.hasApiKey()) {
             log.warn("No LLM_API_KEY found. Falling back to Rule-Based Strategy for Reorder.");
-            return ruleBasedAdvisor.generateReorderSuggestion(p, trigger);
+            ReorderSuggestion fallback = ruleBasedAdvisor.generateReorderSuggestion(p, trigger);
+            fallback.setReasoning(fallback.getReasoning() + " (System Fallback due to AI Key Missing)");
+            fallback.setConfidence(fallback.getConfidence() * 0.9);
+            return fallback;
         }
 
         String prompt = String.format("""
@@ -96,7 +105,10 @@ public class AiCommerceAdvisor implements CommerceAdvisor {
             return parseAndValidateReorder(rawResponse, p, trigger);
         } catch (Exception e) {
             log.error("LLM call failed or timed out. Falling back to Rule-Based Strategy.", e);
-            return ruleBasedAdvisor.generateReorderSuggestion(p, trigger);
+            ReorderSuggestion fallback = ruleBasedAdvisor.generateReorderSuggestion(p, trigger);
+            fallback.setReasoning(fallback.getReasoning() + " (System Fallback due to AI Timeout)");
+            fallback.setConfidence(fallback.getConfidence() * 0.9);
+            return fallback;
         }
     }
 
